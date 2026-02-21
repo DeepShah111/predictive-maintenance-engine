@@ -1,0 +1,40 @@
+# ------------------------------------------------------------------------------
+# 🐍 Python Internals (Never commit these)
+# ------------------------------------------------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ------------------------------------------------------------------------------
+# 💾 Big Files & Artifacts
+# ------------------------------------------------------------------------------
+# We ignore Data and Models because they are large binaries/CSVs.
+# Your code downloads data automatically, so we don't need it in the repo.
+artifacts/data/
+artifacts/models/
+
+# EXCEPTION: We want to Keep the Graphs for the README!
+!artifacts/graphs/
+
+# ------------------------------------------------------------------------------
+# 📓 Jupyter Notebooks
+# ------------------------------------------------------------------------------
+# These are auto-generated backup folders that clutter the repo.
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# ------------------------------------------------------------------------------
+# 🛠️ IDE & Environment Settings (User-specific)
+# ------------------------------------------------------------------------------
+# VS Code settings (Should not be forced on other developers)
+.vscode/
+
+# Virtual Environments
+env/
+venv/
+.env
+
+# Mac/Windows System Files
+.DS_Store
+Thumbs.db
