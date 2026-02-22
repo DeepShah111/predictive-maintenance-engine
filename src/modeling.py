@@ -9,7 +9,7 @@ try:
     from imblearn.over_sampling import SMOTE
     IMBLEARN_AVAILABLE = True
 except ImportError:
-    logger.warning("CRITICAL: imbalanced-learn not installed. Please pip install imbalanced-learn")
+    logger.warning("imbalanced-learn not installed.")
     from sklearn.pipeline import Pipeline
     IMBLEARN_AVAILABLE = False
 
@@ -26,7 +26,7 @@ from sklearn.naive_bayes import GaussianNB
 # Import Config
 from src.config import logger, RANDOM_STATE, ARTIFACTS_DIR, COST_FALSE_NEGATIVE, COST_FALSE_POSITIVE
 
-# Advanced Boosting
+#Advanced boosting
 try:
     from xgboost import XGBClassifier
     from catboost import CatBoostClassifier
@@ -34,14 +34,12 @@ try:
     ADVANCED_BOOSTING = True
 except ImportError:
     ADVANCED_BOOSTING = False
-    logger.warning("   ! XGBoost/CatBoost/LightGBM not found. Skipping advanced models.")
+    logger.warning("XGBoost/CatBoost/LightGBM not found. Skipping advanced models.")
 
-# --- CUSTOM SCORER FOR BUSINESS OPTIMIZATION ---
+#CUSTOM SCORER FOR BUSINESS OPTIMIZATION
 def total_cost_metric(y_true, y_pred):
-    """
-    Custom metric to calculate total business cost.
-    Goal: MINIMIZE this value.
-    """
+
+    #Custom metric to calculate total business cost.Goal: MINIMIZE this value.
     cm = confusion_matrix(y_true, y_pred)
     # Handle edge case if model predicts only one class
     if cm.shape == (2, 2):
@@ -55,13 +53,9 @@ business_cost_scorer = make_scorer(total_cost_metric, greater_is_better=False)
 
 
 def train_and_benchmark(X_train, y_train, X_test, y_test, preprocessor):
-    logger.info("[4/5] 🏎️ Benchmarking Model Zoo with SMOTE...")
-    
-    # FIX: Removed scale_weight calculation. 
-    # Since SMOTE balances the data to 1:1, we must NOT use class weights.
+    logger.info("[4/5] Benchmarking Model Zoo with SMOTE...")
     
     models = {
-        # FIX: Removed class_weight='balanced' from all models
         "Logistic Regression": LogisticRegression(max_iter=1000, random_state=RANDOM_STATE),
         "SVC (Prob)": SVC(probability=True, random_state=RANDOM_STATE),
         "Decision Tree": DecisionTreeClassifier(random_state=RANDOM_STATE),
@@ -71,7 +65,6 @@ def train_and_benchmark(X_train, y_train, X_test, y_test, preprocessor):
     }
     
     if ADVANCED_BOOSTING:
-        # FIX: Removed scale_pos_weight / class_weight arguments
         models["XGBoost"] = XGBClassifier(
             use_label_encoder=False, 
             eval_metric='logloss', 
@@ -100,17 +93,14 @@ def train_and_benchmark(X_train, y_train, X_test, y_test, preprocessor):
             
             full_pipeline = Pipeline(steps=steps)
             
-            # Train
             full_pipeline.fit(X_train, y_train)
             
-            # Predict
             y_pred = full_pipeline.predict(X_test)
             try:
                 y_prob = full_pipeline.predict_proba(X_test)[:, 1]
             except:
                 y_prob = np.zeros(len(y_test))
 
-            # Metrics
             metrics = {
                 "Model": name,
                 "Accuracy": accuracy_score(y_test, y_pred),
@@ -123,7 +113,7 @@ def train_and_benchmark(X_train, y_train, X_test, y_test, preprocessor):
             trained_models[name] = full_pipeline
             
         except Exception as e:
-            logger.error(f"   ! Error training {name}: {e}")
+            logger.error(f" Error training {name}: {e}")
 
     # Leaderboard Generation
     leaderboard = pd.DataFrame(results_list)
@@ -131,23 +121,20 @@ def train_and_benchmark(X_train, y_train, X_test, y_test, preprocessor):
     
     leaderboard.to_csv(f"{ARTIFACTS_DIR}/model_leaderboard.csv", index=False)
     
-    print("\n" + "="*80 + "\n   🏆 MASTER MODEL LEADERBOARD (Sorted by F1) 🏆\n" + "="*80)
+    print("\n" + "="*80 + "\n   🏆 MASTER MODEL LEADERBOARD (Sorted by F1) \n" + "="*80)
     print(leaderboard.to_string(index=False))
     
     # Select Champion
     champion_name = leaderboard.iloc[0]['Model']
     champion_model = trained_models[champion_name]
     
-    logger.info(f"   >>> Champion Selected: {champion_name} (F1: {leaderboard.iloc[0]['F1-Score']:.4f})")
+    logger.info(f"Champion Selected: {champion_name} (F1: {leaderboard.iloc[0]['F1-Score']:.4f})")
     
     return champion_model, champion_name, leaderboard
 
 def tune_champion_model(model_pipeline, model_name, X_train, y_train):
-    logger.info(f"   -> 🔧 Tuning Champion: {model_name}...")
-    
-    # Tuning Grids
-    # FIX: Removed class_weight/scale_pos_weight parameters from grid search 
-    # to avoid re-introducing the Double Balancing issue.
+    logger.info(f"Tuning Champion: {model_name}...")
+
     param_grids = {
         "Random Forest": {
             'model__n_estimators': [100, 200],
@@ -172,8 +159,7 @@ def tune_champion_model(model_pipeline, model_name, X_train, y_train):
             break
             
     if grid_params:
-        # OPTIMIZED: Use Custom Business Cost Scorer
-        logger.info("   -> Optimizing for MINIMUM BUSINESS COST (Custom Scorer)...")
+        logger.info("Optimizing for MINIMUM BUSINESS COST (Custom Scorer)")
         grid = GridSearchCV(
             model_pipeline, 
             grid_params, 
@@ -183,8 +169,8 @@ def tune_champion_model(model_pipeline, model_name, X_train, y_train):
             verbose=1
         )
         grid.fit(X_train, y_train)
-        logger.info(f"   ✓ Tuning Complete. Best Cost Score: {grid.best_score_:.4f}")
+        logger.info(f"Tuning Complete. Best Cost Score: {grid.best_score_:.4f}")
         return grid.best_estimator_
     
-    logger.info("   ! No specific tuning grid for this model. Returning base model.")
+    logger.info("No specific tuning grid for this model. Returning base model.")
     return model_pipeline

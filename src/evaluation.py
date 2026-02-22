@@ -10,9 +10,7 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc, classification_rep
 from src.config import logger, ARTIFACTS_DIR, COST_FALSE_NEGATIVE, COST_FALSE_POSITIVE
 
 def optimize_threshold(model, X_test, y_test):
-    """
-    Finds the optimal probability threshold to minimize business cost.
-    """
+    #Finds the optimal probability threshold to minimize business cost.
     y_prob = model.predict_proba(X_test)[:, 1]
     thresholds = np.arange(0, 1.01, 0.01)
     costs = []
@@ -31,29 +29,29 @@ def optimize_threshold(model, X_test, y_test):
     best_threshold = thresholds[min_cost_idx]
     min_cost = costs[min_cost_idx]
     
-    logger.info(f"   💡 Optimal Threshold Found: {best_threshold:.2f} (Min Cost: ${min_cost:,})")
+    logger.info(f"Optimal Threshold Found: {best_threshold:.2f} (Min Cost: ${min_cost:,})")
     return best_threshold
 
 def evaluate_and_plot(model, model_name, X_test, y_test):
-    logger.info(f"[5/5] 📊 Evaluating & Saving Artifacts for {model_name}...")
+    logger.info(f"[5/5] Evaluating & Saving Artifacts for {model_name}")
     
     y_prob = model.predict_proba(X_test)[:, 1]
     
-    # 1. OPTIMIZE THRESHOLD
+    #OPTIMIZE THRESHOLD
     best_thresh = optimize_threshold(model, X_test, y_test)
     y_pred = (y_prob >= best_thresh).astype(int)
     
-    # 2. Classification Report
+    #Classification Report
     print("\n" + "="*30 + f" DETAILED REPORT (Thresh={best_thresh:.2f}) " + "="*30)
     print(classification_report(y_test, y_pred))
     
-    # 3. Confusion Matrix & Cost Analysis
+    #Confusion Matrix & Cost Analysis
     cm = confusion_matrix(y_test, y_pred)
     tn, fp, fn, tp = cm.ravel()
     
     total_cost = (fp * COST_FALSE_POSITIVE) + (fn * COST_FALSE_NEGATIVE)
     
-    print(f"\n💰 BUSINESS IMPACT ANALYSIS:")
+    print(f"\n BUSINESS IMPACT ANALYSIS:")
     print(f"   - Optimal Threshold: {best_thresh:.2f}")
     print(f"   - False Negatives (Missed Failures): {fn} (Cost: ${fn * COST_FALSE_NEGATIVE:,})")
     print(f"   - False Positives (Wasted Checks):   {fp} (Cost: ${fp * COST_FALSE_POSITIVE:,})")
@@ -68,7 +66,7 @@ def evaluate_and_plot(model, model_name, X_test, y_test):
     plt.savefig(f'{ARTIFACTS_DIR}/graphs/confusion_matrix.png')
     plt.close()
     
-    # 4. ROC Curve
+    #ROC Curve
     fpr, tpr, _ = roc_curve(y_test, y_prob)
     roc_auc = auc(fpr, tpr)
     
@@ -80,15 +78,10 @@ def evaluate_and_plot(model, model_name, X_test, y_test):
     plt.savefig(f'{ARTIFACTS_DIR}/graphs/roc_curve.png')
     plt.close()
     
-    # 5. Feature Importance
+    # Feature Importance
     try:
         classifier = model.named_steps['model']
-        
-        # --- FIXED CODE BLOCK ---
-        # Get feature names dynamically from the pipeline
         feature_names = model.named_steps['preprocessor'].get_feature_names_out()
-        # ------------------------
-        
         importances = None
         if hasattr(classifier, 'feature_importances_'):
             importances = classifier.feature_importances_
@@ -100,20 +93,19 @@ def evaluate_and_plot(model, model_name, X_test, y_test):
             top_n = 10
             
             plt.figure(figsize=(12, 6))
-            # Safe indexing using numpy array
             sns.barplot(x=importances[indices[:top_n]], y=feature_names[indices[:top_n]], palette='viridis')
             plt.title(f'Top {top_n} Feature Importance: {model_name}')
             plt.tight_layout()
             plt.savefig(f'{ARTIFACTS_DIR}/graphs/feature_importance.png')
             plt.close()
         else:
-            logger.warning("   ! Model does not support feature importance extraction.")
+            logger.warning("Model does not support feature importance extraction.")
             
     except Exception as e:
-        logger.warning(f"   ! Could not generate feature importance plot: {e}")
+        logger.warning(f"Could not generate feature importance plot: {e}")
 
 def save_model(model, model_name):
     safe_name = model_name.replace(" ", "_").lower()
     path = f'{ARTIFACTS_DIR}/models/{safe_name}_champion.pkl'
     joblib.dump(model, path)
-    logger.info(f"   ✓ Production Model Saved to: {path}")
+    logger.info(f"Production Model Saved to: {path}")
