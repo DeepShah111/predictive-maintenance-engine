@@ -1,4 +1,4 @@
-# ⚙️ Predictive Maintenance Engine (Enterprise Edition)
+# Predictive Maintenance Engine (Enterprise Edition)
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![LightGBM](https://img.shields.io/badge/Model-LightGBM-green)
@@ -10,7 +10,7 @@
 
 ---
 
-## 💼 Executive Summary & Business Case
+## Executive Summary & Business Case
 
 In heavy manufacturing, equipment failure is the single largest driver of operational variance. Traditional maintenance strategies are inefficient:
 * **Reactive Maintenance:** Wait for failure (High Cost: Downtime + Catastrophic Damage).
@@ -27,7 +27,7 @@ The model is tuned against a specific asymmetric cost structure defined by busin
 
 ---
 
-## 🛠️ Technical Architecture
+## Technical Architecture
 
 To address the **97:3 Class Imbalance** and physical complexity of the dataset, the pipeline adheres to strict MLOps principles:
 
@@ -49,7 +49,7 @@ We rejected the "black box" approach in favor of domain-driven engineering. By a
 
 ---
 
-## 📊 Evaluation & Results
+## Evaluation & Results
 
 The system benchmarked multiple algorithms (XGBoost, Random Forest, Logistic Regression) in a "Champion vs. Challenger" framework. **LightGBM** was selected as the Production Champion.
 
@@ -60,7 +60,7 @@ The system benchmarked multiple algorithms (XGBoost, Random Forest, Logistic Reg
 | **Precision** | **57%** | We accept a ~40% false alarm rate to ensure safety. |
 | **Total Projected Cost** | **$93,000** | **Minimized** relative to reactive baseline ($600k+). |
 
-### 📸 Visual Evidence
+### Visual Evidence
 
 #### 1. Confusion Matrix (The "Money" Chart)
 *At Threshold 0.27, we catch 61/68 failures, accepting only 46 false alarms.*
@@ -76,7 +76,7 @@ The system benchmarked multiple algorithms (XGBoost, Random Forest, Logistic Reg
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 predictive-maintenance-engine/
@@ -100,7 +100,7 @@ predictive-maintenance-engine/
 ├── requirements.txt            # Dependencies
 └── README.md                   # Project Documentation
 
-🚀 How to Run
+ How to Run
 This pipeline is optimized for Google Colab with seamless Google Drive integration.
 
 Clone & Upload:
