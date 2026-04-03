@@ -1,24 +1,39 @@
-# Data Manipulation & Math
-pandas>=1.3.0
-numpy>=1.21.0
+# =============================================================================
+# AI4I Predictive Maintenance Engine — Python Dependencies
+# =============================================================================
+# Pin to minimum versions that are known to work together.
+# For a fully reproducible environment use:
+#   pip install -r requirements.txt
+# =============================================================================
 
-# Visualization
-matplotlib>=3.4.0
-seaborn>=0.11.0
+# --- Core data manipulation ---
+pandas>=1.5.0
+numpy>=1.23.0
 
-# Machine Learning Core
-scikit-learn>=1.0.0
-imbalanced-learn>=0.8.0  # Required for SMOTE
-joblib>=1.1.0            # For saving/loading models
+# --- Visualisation ---
+matplotlib>=3.6.0
+seaborn>=0.12.0
 
-# Advanced Gradient Boosting Models (The "Big Three")
-xgboost>=1.5.0
-lightgbm>=3.3.0
-catboost>=1.0.0
+# --- Machine learning core ---
+scikit-learn>=1.2.0
+joblib>=1.2.0           # Model serialisation (ships with scikit-learn but pinned explicitly)
 
-# Data Ingestion Utilities
-gdown>=4.4.0             # To download datasets from Google Drive
+# --- Imbalanced-class handling ---
+imbalanced-learn>=0.10.0  # SMOTE — must be compatible with the scikit-learn version above
 
-# Notebook Environment (Optional but recommended for VS Code/Colab)
+# --- Advanced gradient boosting (the "Big Three") ---
+xgboost>=1.7.0
+lightgbm>=3.3.5
+catboost>=1.1.0
+
+# --- Data ingestion ---
+gdown>=4.6.3            # Google Drive direct-download helper
+
+# --- Testing ---
+pytest>=7.2.0               # Unit test runner  →  run with: pytest tests/ -v
+
+# --- Development / notebook environment ---
+# These are not required for the pipeline to run as a script (main.py),
+# but are needed for the VS Code + Colab notebook workflow.
 jupyter>=1.0.0
-ipykernel>=6.0.0
+ipykernel>=6.19.0
