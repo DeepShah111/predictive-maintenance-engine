@@ -7,6 +7,9 @@
   <img src="https://img.shields.io/badge/Recall-94.1%25-brightgreen?style=flat-square"/>
   <img src="https://img.shields.io/badge/Tests-14%20Passed-blue?style=flat-square"/>
   <img src="https://img.shields.io/badge/Evaluation-Business%20Cost%20Optimized-red?style=flat-square"/>
+  <img src="https://img.shields.io/badge/Streamlit-App-FF4B4B?style=flat-square&logo=streamlit&logoColor=white"/>
+  <img src="https://img.shields.io/badge/FastAPI-REST%20API-009688?style=flat-square&logo=fastapi&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Docker-Containerized-2496ED?style=flat-square&logo=docker&logoColor=white"/>
 </p>
 
 > An end-to-end production ML pipeline that predicts industrial machine failures before they happen.  
@@ -18,14 +21,18 @@
 
 1. [The Business Problem](#1-the-business-problem)
 2. [What Makes This Different](#2-what-makes-this-different)
-3. [Pipeline Architecture](#3-pipeline-architecture)
+3. [System Architecture](#3-system-architecture)
 4. [Technical Decisions & Rationale](#4-technical-decisions--rationale)
 5. [Results](#5-results)
 6. [Business Impact](#6-business-impact)
 7. [Repository Structure](#7-repository-structure)
-8. [Quickstart](#8-quickstart)
-9. [Running Tests](#9-running-tests)
-10. [Dataset](#10-dataset)
+8. [Quickstart — Training Pipeline](#8-quickstart--training-pipeline)
+9. [Streamlit App](#9-streamlit-app)
+10. [FastAPI — REST Endpoints](#10-fastapi--rest-endpoints)
+11. [Docker Deployment](#11-docker-deployment)
+12. [Drift Detection & Monitoring](#12-drift-detection--monitoring)
+13. [Running Tests](#13-running-tests)
+14. [Dataset](#14-dataset)
 
 ---
 
@@ -64,10 +71,13 @@ That is a **20:1 cost asymmetry**. Every decision in this pipeline flows from th
 | SMOTE applied to the full dataset | SMOTE inside CV folds only — no synthetic leakage |
 | Pick champion by test-set F1 | Pick champion by 5-fold cross-validated F1 mean |
 | No unit tests | 14 pytest unit tests covering all core functions |
+| Notebook only | Streamlit app + FastAPI + Docker + drift monitoring |
 
 ---
 
-## 3. Pipeline Architecture
+## 3. System Architecture
+
+### 3.1 ML Training Pipeline
 
 ```
 Raw CSV (Google Drive / local cache)
@@ -103,24 +113,54 @@ Raw CSV (Google Drive / local cache)
 │    → classifier                     │
 │                                     │
 │  Champion = highest CV_F1_Mean      │
-│                                     │
-│  GridSearchCV tuning on             │
-│  business-cost scorer               │
+│  GridSearchCV on business-cost      │
 └──────────────────┬──────────────────┘
                    │
                    ▼
 ┌─────────────────────────────────────┐
 │          evaluation.py              │
-│                                     │
 │  optimize_threshold(X_val, y_val)   │  ← val set ONLY
-│                                     │
 │  Final report on (X_test, y_test)   │  ← test set, first touch here
 │  Confusion matrix · ROC · Features  │
 │  Save model → artifacts/models/     │
 └─────────────────────────────────────┘
 ```
 
-**The three-way split is the most important design decision in this pipeline.** If the threshold search and the final metric report both use the test set, the reported cost is biased downward — the threshold has "seen" the test labels. By searching on the validation set and reporting on a completely separate test set, the projected cost figure is an honest, unbiased estimate of what the system would cost in production.
+### 3.2 Full Production Stack
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     PRODUCTION SYSTEM                            │
+│                                                                  │
+│  ┌─────────────────────┐     ┌──────────────────────────────┐   │
+│  │   streamlit_app.py  │     │      api/main.py (FastAPI)   │   │
+│  │                     │     │                              │   │
+│  │  Tab 1: Live Pred.  │     │  POST /predict               │   │
+│  │  Tab 2: Batch       │     │  POST /predict-batch         │   │
+│  │  Tab 3: Dashboard   │     │  GET  /health                │   │
+│  └──────────┬──────────┘     └──────────────┬───────────────┘   │
+│             │                               │                    │
+│             └─────────────┬─────────────────┘                   │
+│                           │                                      │
+│                           ▼                                      │
+│              ┌────────────────────────┐                         │
+│              │  lightgbm_champion.pkl │                         │
+│              │  (artifacts/models/)   │                         │
+│              └────────────────────────┘                         │
+│                           │                                      │
+│                           ▼                                      │
+│              ┌────────────────────────┐                         │
+│              │     monitoring.py      │                         │
+│              │  KS drift detection    │                         │
+│              │  → drift_alerts.csv    │                         │
+│              └────────────────────────┘                         │
+│                                                                  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │                   Docker / docker-compose                 │  │
+│  │            FastAPI container (port 8000)                  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -214,7 +254,7 @@ The model catches **64 of 68 actual failures** (94.1% recall). 4 failures are mi
 
 ![ROC Curve](artifacts/graphs/roc_curve.png)
 
-*AUC = 0.9847. The curve immediately reaches ~80% True Positive Rate at near-zero False Positive Rate. This means the model correctly ranks nearly every real failure above nearly every healthy machine across all possible probability thresholds — exceptional performance on a severely imbalanced dataset.*
+*AUC = 0.9847. The curve immediately reaches ~80% True Positive Rate at near-zero False Positive Rate.*
 
 ---
 
@@ -222,7 +262,7 @@ The model catches **64 of 68 actual failures** (94.1% recall). 4 failures are mi
 
 ![Feature Importance](artifacts/graphs/feature_importance.png)
 
-*`Tool wear [min]` ranks first — physically expected, worn tools are the direct failure cause. `Power` and `Temp_Diff` — both engineered features — rank 2nd and 3rd, above every raw sensor reading. This is empirical evidence that domain-driven feature engineering outperforms raw sensor data.*
+*`Tool wear [min]` ranks first. `Power` and `Temp_Diff` — both engineered features — rank 2nd and 3rd, above every raw sensor reading.*
 
 ---
 
@@ -244,10 +284,6 @@ The model catches **64 of 68 actual failures** (94.1% recall). 4 failures are mi
 | Preventive — fixed schedule | 100% | ~$250,000 | ~$430,000 |
 | **This system — LightGBM, threshold 0.32** | **94.1%** | **~$130,500** | **~$549,500** |
 
-> Baseline figures extrapolated from test set failure rate (68 failures / 2,000 cycles) to a representative annual operating scale. Actual savings depend on production volume, labor rates, and negotiated downtime costs.
-
-**On the precision vs. recall trade-off:** Setting the threshold to 0.0 would catch 100% of failures but flag every machine as failing — 1,932 false alarms at $500 = $966,000 in unnecessary inspection costs, worse than doing nothing. The threshold of 0.32 is the mathematically optimal operating point for this specific cost structure.
-
 ---
 
 ## 7. Repository Structure
@@ -264,33 +300,38 @@ predictive-maintenance-engine/
 │   │   └── feature_importance.png
 │   ├── models/
 │   │   └── lightgbm_champion.pkl      # Serialized tuned pipeline
-│   ├── model_leaderboard.csv          # Full 9-model benchmark table
-│   └── pipeline_run.log               # Timestamped execution log
+│   ├── model_leaderboard.csv
+│   ├── training_stats.csv             # NEW — feature stats for drift detection
+│   ├── drift_alerts.csv               # NEW — drift monitoring log
+│   └── pipeline_run.log
 │
-├── notebooks/
-│   └── main_execution.ipynb           # Orchestration — Google Colab / VS Code
-│
-├── src/                               # Modular Python package
+├── api/                               # NEW — FastAPI service
 │   ├── __init__.py
-│   ├── config.py                      # Constants, paths, cost parameters, logging
-│   ├── data_ingestion.py              # Download, schema validation, cleaning
-│   ├── feature_engineering.py         # Physics features, preprocessor, 3-way split
-│   ├── modeling.py                    # Model zoo, CV benchmarking, tuning
-│   └── evaluation.py                  # Threshold optimization, plots, model save
+│   └── main.py                        # /predict, /predict-batch, /health
+│
+├── src/                               # Core ML package (unchanged)
+│   ├── __init__.py
+│   ├── config.py
+│   ├── data_ingestion.py
+│   ├── feature_engineering.py
+│   ├── modeling.py
+│   └── evaluation.py
 │
 ├── tests/
-│   ├── __init__.py
 │   └── test_pipeline.py               # 14 pytest unit tests
 │
-├── .gitignore
-├── LICENSE
+├── main_execution.ipynb               # Orchestration notebook
+├── streamlit_app.py                   # NEW — Streamlit dashboard
+├── monitoring.py                      # NEW — KS drift detection
+├── Dockerfile                         # NEW — containerize the API
+├── docker-compose.yml                 # NEW — local dev stack
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## 8. Quickstart
+## 8. Quickstart — Training Pipeline
 
 ### Option A — Google Colab (Recommended)
 
@@ -299,48 +340,262 @@ predictive-maintenance-engine/
 MyDrive/
 └── predictive-maintenance-engine/
     ├── src/
-    ├── notebooks/
+    ├── api/
     ├── tests/
+    ├── streamlit_app.py
+    ├── monitoring.py
+    ├── Dockerfile
+    ├── docker-compose.yml
     └── requirements.txt
 ```
 
-**2. Open `notebooks/main_execution.ipynb` in Google Colab.**
+**2. Open `main_execution.ipynb` in Google Colab.**
 
 **3. Install dependencies (first session only):**
 ```python
 !pip install -r requirements.txt
 ```
 
-**4. Run all cells.**
-The pipeline mounts Drive, downloads the dataset automatically, runs all 7 steps, and saves every artifact back to Drive.
+**4. Run all cells.**  
+The pipeline mounts Drive, downloads the dataset, runs all 7 steps, and saves every artifact back to Drive.
 
-> Custom Drive path:
-> ```python
-> import os
-> os.environ['PROJECT_PATH'] = '/content/drive/MyDrive/your-path-here'
-> ```
-
-### Option B — Local (VS Code / terminal)
+### Option B — Local
 
 ```bash
-# Clone
-git clone git clone https://github.com/DeepShah111/predictive-maintenance-engine.git
+git clone https://github.com/DeepShah111/predictive-maintenance-engine.git
 cd predictive-maintenance-engine
 
-# Virtual environment
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 
-# Install
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 
-# Run
-python notebooks/main_execution.py
+# Run the training pipeline
+jupyter nbconvert --to notebook --execute main_execution.ipynb
 ```
 
 ---
 
-## 9. Running Tests
+## 9. Streamlit App
+
+The Streamlit dashboard provides three interactive tabs:
+
+| Tab | What it does |
+|---|---|
+| ⚡ Live Prediction | Sensor sliders → real-time failure probability gauge + risk level (GREEN/AMBER/RED) + cost impact |
+| 📂 Batch Analysis | Upload CSV of machines → download flagged machines sorted by risk, fleet summary |
+| 📊 Business Dashboard | Strategy cost comparison, interactive threshold slider with live FP/FN/cost update |
+
+### Run the app
+
+```bash
+# Make sure the training pipeline has been run first (model must exist)
+streamlit run streamlit_app.py
+```
+
+The app opens at **http://localhost:8501**.
+
+> **Requirement:** The trained model must exist at `artifacts/models/lightgbm_champion.pkl`.  
+> Run the training pipeline first if it doesn't.
+
+---
+
+## 10. FastAPI — REST Endpoints
+
+### Start the API
+
+```bash
+# Install API dependencies (already in requirements.txt)
+pip install fastapi uvicorn[standard] pydantic
+
+# Run
+uvicorn api.main:app --reload --port 8000
+```
+
+Interactive docs at **http://localhost:8000/docs**
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Liveness check — model loaded status, threshold, version |
+| `POST` | `/predict` | Single sensor reading → failure probability + risk |
+| `POST` | `/predict-batch` | List of readings → batch predictions + fleet summary |
+
+### Example curl commands
+
+**Health check:**
+```bash
+curl http://localhost:8000/health
+```
+
+**Single prediction:**
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "machine_type": "M",
+    "air_temperature_K": 300.5,
+    "process_temperature_K": 310.2,
+    "rotational_speed_rpm": 1450,
+    "torque_Nm": 42.5,
+    "tool_wear_min": 195,
+    "machine_id": "MACHINE-001"
+  }'
+```
+
+**Expected response:**
+```json
+{
+  "machine_id": "MACHINE-001",
+  "failure_probability": 0.712341,
+  "failure_probability_pct": 71.23,
+  "risk_level": "DANGER",
+  "recommended_action": "IMMEDIATE maintenance required. Take machine offline.",
+  "expected_cost_if_ignored": 7123.41,
+  "physics_features": {
+    "Temp_Diff": 9.7,
+    "Power": 61525.0,
+    "Force_Ratio": 0.029310
+  },
+  "model_name": "Lightgbm",
+  "threshold_used": 0.32
+}
+```
+
+**Batch prediction:**
+```bash
+curl -X POST http://localhost:8000/predict-batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "readings": [
+      {
+        "machine_type": "L",
+        "air_temperature_K": 298.1,
+        "process_temperature_K": 308.6,
+        "rotational_speed_rpm": 1861,
+        "torque_Nm": 24.8,
+        "tool_wear_min": 221,
+        "machine_id": "MACHINE-042"
+      },
+      {
+        "machine_type": "M",
+        "air_temperature_K": 302.3,
+        "process_temperature_K": 312.1,
+        "rotational_speed_rpm": 1350,
+        "torque_Nm": 60.0,
+        "tool_wear_min": 240,
+        "machine_id": "MACHINE-099"
+      }
+    ]
+  }'
+```
+
+---
+
+## 11. Docker Deployment
+
+### Build and run
+
+```bash
+# Build the image
+docker build -t predictive-maintenance-api .
+
+# Run the container
+docker run -p 8000:8000 \
+  -v $(pwd)/artifacts:/app/artifacts:ro \
+  predictive-maintenance-api
+```
+
+### docker-compose (recommended for local dev)
+
+```bash
+# First run — builds image
+docker compose up --build
+
+# Subsequent runs
+docker compose up
+
+# Stop
+docker compose down
+
+# Tail logs
+docker compose logs -f api
+```
+
+The API will be available at **http://localhost:8000**.
+
+> **Note:** The `artifacts/` directory is mounted as a read-only volume so the container always uses the latest trained model without a rebuild. In production, bake the model directly into the Docker image instead.
+
+---
+
+## 12. Drift Detection & Monitoring
+
+The `monitoring.py` module detects covariate shift between the training distribution and incoming production data using the **Kolmogorov-Smirnov test** (α = 0.05).
+
+### How it works
+
+1. After training, `save_training_stats(X_train)` persists feature mean/std/min/max to `artifacts/training_stats.csv`.
+2. When new batches arrive, `check_drift(batch_df)` runs a KS 2-sample test for each numeric feature.
+3. Features with p-value < 0.05 are flagged as drifted. All results are logged to `artifacts/drift_alerts.csv`.
+
+### Integrate into the training pipeline
+
+Add these two lines at the end of your `main_execution.ipynb` (after the pipeline completes):
+
+```python
+from monitoring import save_training_stats_from_pipeline
+save_training_stats_from_pipeline(X_train)
+```
+
+### Programmatic usage
+
+```python
+from monitoring import DriftMonitor
+import pandas as pd
+
+monitor = DriftMonitor()
+
+# Check a new batch for drift
+new_readings = pd.read_csv("new_sensor_data.csv")
+alerts = monitor.check_drift(new_readings, tag="production_batch_2025_01")
+
+if alerts:
+    for alert in alerts:
+        print(f"DRIFT: {alert['feature']} — shift {alert['mean_shift_pct']:.1f}%")
+
+# View full drift log
+log_df = monitor.get_drift_log()
+print(log_df.tail(20))
+```
+
+### CLI usage
+
+```bash
+python monitoring.py --csv new_sensor_data.csv --tag production_jan_2025
+
+# Custom threshold (default 0.05)
+python monitoring.py --csv new_sensor_data.csv --threshold 0.01
+```
+
+### Drift log format (`artifacts/drift_alerts.csv`)
+
+| Column | Description |
+|---|---|
+| `timestamp_utc` | UTC timestamp of the check |
+| `feature` | Feature name |
+| `ks_statistic` | KS test statistic (0–1, higher = more divergent) |
+| `p_value` | KS p-value (< 0.05 = drift declared) |
+| `drift_detected` | Boolean |
+| `train_mean` | Training distribution mean |
+| `batch_mean` | Incoming batch mean |
+| `mean_shift_pct` | Absolute % shift from training mean |
+| `n_samples` | Number of samples in the batch |
+| `tag` | User-defined batch label |
+
+---
+
+## 13. Running Tests
 
 ```bash
 python -m pytest tests/ -v
@@ -369,11 +624,9 @@ tests/test_pipeline.py::test_schema_validation_raises_on_missing_columns  PASSED
 14 passed in ~18s
 ```
 
-Tests cover: physics feature creation and value correctness, infinity sanitisation, leakage column removal, preprocessor construction, duplicate removal, index contiguity after cleaning, three-way split size integrity, class-balance preservation across all splits, business cost metric correctness, degenerate prediction handling, and schema validation.
-
 ---
 
-## 10. Dataset
+## 14. Dataset
 
 **AI4I 2020 Predictive Maintenance Dataset**
 

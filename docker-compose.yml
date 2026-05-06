@@ -1,0 +1,69 @@
+# =============================================================================
+# docker-compose.yml — local development & testing stack
+# =============================================================================
+#
+# Services:
+#   api      — FastAPI predictive maintenance service (port 8000)
+#
+# Usage:
+#   docker compose up --build          # first run (builds image)
+#   docker compose up                  # subsequent runs
+#   docker compose down                # stop & remove containers
+#   docker compose logs -f api         # tail API logs
+#
+# Environment variables can be overridden in a .env file at project root:
+#   echo "PORT=9000" > .env
+# =============================================================================
+
+version: "3.9"
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Predictive Maintenance FastAPI Service
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: predictive_maintenance_api
+    image: predictive-maintenance-api:latest
+
+    ports:
+      - "${PORT:-8000}:8000"
+
+    volumes:
+      # Mount artifacts so the container always uses the latest trained model
+      # without a rebuild. Remove this in production — bake the model into the image.
+      - ./artifacts:/app/artifacts:ro
+
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    # Resource limits — adjust to your machine
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
