@@ -3,30 +3,30 @@
 # =============================================================================
 
 # --- Core data manipulation ---
-pandas>=1.5.0
-numpy>=1.23.0
+pandas
+numpy
 
 # --- Visualisation ---
-plotly>=5.13.0
-matplotlib>=3.6.0
-seaborn>=0.12.0
+plotly
+matplotlib
+seaborn
 
 # --- Machine learning core ---
-scikit-learn==1.4.2
-joblib>=1.2.0
+scikit-learn==1.6.1
+joblib
 
 # --- Imbalanced-class handling ---
-imbalanced-learn==0.12.3
+imbalanced-learn==0.13.0
 
 # --- Gradient boosting (inference only) ---
-lightgbm>=3.3.5
-xgboost>=1.7.0
+lightgbm
+xgboost
 
 # --- Data ingestion ---
-gdown>=4.6.3
+gdown
 
 # --- Streamlit ---
-streamlit>=1.35.0
+streamlit
 
 # --- Monitoring ---
-scipy>=1.10.0
+scipy

@@ -44,7 +44,7 @@ from src.feature_engineering import create_physics_features
 # The model is excluded from GitHub (.gitignore) because it is a large binary.
 # On first run in the cloud, gdown fetches it from Google Drive automatically.
 # ---------------------------------------------------------------------------
-_MODEL_GDRIVE_ID  = "1lnDEvXGSmzcNlC3tkbiRjPyrxYyza2f8"
+_MODEL_GDRIVE_ID  = "1aZrX7R9Xl9VcC7WNrXzQ4CHAf-YshDth"
 _MODEL_GDRIVE_URL = f"https://drive.google.com/uc?id={_MODEL_GDRIVE_ID}"
 _MODEL_PATH       = ARTIFACTS_DIR / "models" / "lightgbm_champion.pkl"
 
