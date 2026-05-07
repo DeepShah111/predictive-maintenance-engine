@@ -16,7 +16,7 @@ seaborn>=0.12.0
 plotly>=5.13.0              # Interactive charts in Streamlit dashboard
 
 # --- Machine learning core ---
-scikit-learn==1.8.0
+scikit-learn==1.4.2
 joblib>=1.2.0               # Model serialisation (ships with scikit-learn but pinned explicitly)
 
 # --- Imbalanced-class handling ---
