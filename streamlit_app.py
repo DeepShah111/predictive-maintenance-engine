@@ -15,6 +15,7 @@ import os
 import sys
 from pathlib import Path
 
+import gdown
 import joblib
 import numpy as np
 import pandas as pd
@@ -37,6 +38,46 @@ from src.config import (
     CAT_FEATURES,
 )
 from src.feature_engineering import create_physics_features
+
+# ---------------------------------------------------------------------------
+# MODEL AUTO-DOWNLOAD (for Streamlit Cloud deployment)
+# The model is excluded from GitHub (.gitignore) because it is a large binary.
+# On first run in the cloud, gdown fetches it from Google Drive automatically.
+# ---------------------------------------------------------------------------
+_MODEL_GDRIVE_ID  = "17nQo9ypMg5OF39OuZDQM4JR2IWjh_YAI"
+_MODEL_GDRIVE_URL = f"https://drive.google.com/uc?id={_MODEL_GDRIVE_ID}"
+_MODEL_PATH       = ARTIFACTS_DIR / "models" / "lightgbm_champion.pkl"
+
+
+def ensure_model_exists() -> None:
+    """Download the champion model from Google Drive if not present locally.
+
+    This runs once at app startup on Streamlit Cloud where the model file
+    is not committed to the repository. Locally, the file already exists
+    so gdown is never called.
+    """
+    if _MODEL_PATH.exists():
+        return  # already present — local dev or subsequent cloud runs
+
+    _MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with st.spinner("⏳ Downloading model from Google Drive (first run only)…"):
+        try:
+            gdown.download(_MODEL_GDRIVE_URL, str(_MODEL_PATH), quiet=False)
+        except Exception as exc:
+            st.error(
+                f"❌ Failed to download model: {exc}\n\n"
+                "Check that the Google Drive file is shared as 'Anyone with the link'."
+            )
+            st.stop()
+
+    if not _MODEL_PATH.exists():
+        st.error("❌ Model download appeared to succeed but file is missing.")
+        st.stop()
+
+
+# Run the check immediately at import time
+ensure_model_exists()
 
 # ---------------------------------------------------------------------------
 # PAGE CONFIG
@@ -355,11 +396,11 @@ def load_training_stats() -> dict:
 # ---------------------------------------------------------------------------
 
 _FAILURE_MODE_RULES = {
-    "Tool Wear Failure (TWF)": lambda r: r["Tool wear [min]"] > 200,
+    "Tool Wear Failure (TWF)":        lambda r: r["Tool wear [min]"] > 200,
     "Heat Dissipation Failure (HDF)": lambda r: r["Temp_Diff"] < 8.6,
-    "Power Failure (PWF)": lambda r: r["Power"] < 3500 or r["Power"] > 9000,
-    "Overstrain Failure (OSF)": lambda r: r["Force_Ratio"] > 0.035,
-    "Random Failure (RNF)": lambda r: False,
+    "Power Failure (PWF)":            lambda r: r["Power"] < 3500 or r["Power"] > 9000000,
+    "Overstrain Failure (OSF)":       lambda r: r["Force_Ratio"] > 0.035,
+    "Random Failure (RNF)":           lambda r: False,
 }
 
 
