@@ -549,7 +549,7 @@ tab_live, tab_batch, tab_dashboard = st.tabs(
 with tab_live:
     st.markdown('<div class="section-title">Sensor Input Parameters</div>', unsafe_allow_html=True)
 
-    col_inputs, col_results = st.columns([1, 1], gap="large")
+    col_inputs, col_results = st.columns([1, 1.2], gap="large")
 
     with col_inputs:
         machine_type = st.selectbox(
