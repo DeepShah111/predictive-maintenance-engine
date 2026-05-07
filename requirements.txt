@@ -13,13 +13,14 @@ numpy>=1.23.0
 # --- Visualisation ---
 matplotlib>=3.6.0
 seaborn>=0.12.0
+plotly>=5.13.0              # Interactive charts in Streamlit dashboard
 
 # --- Machine learning core ---
 scikit-learn>=1.2.0
-joblib>=1.2.0           # Model serialisation (ships with scikit-learn but pinned explicitly)
+joblib>=1.2.0               # Model serialisation (ships with scikit-learn but pinned explicitly)
 
 # --- Imbalanced-class handling ---
-imbalanced-learn>=0.10.0  # SMOTE — must be compatible with the scikit-learn version above
+imbalanced-learn>=0.10.0    # SMOTE — must be compatible with the scikit-learn version above
 
 # --- Advanced gradient boosting (the "Big Three") ---
 xgboost>=1.7.0
@@ -27,13 +28,24 @@ lightgbm>=3.3.5
 catboost>=1.1.0
 
 # --- Data ingestion ---
-gdown>=4.6.3            # Google Drive direct-download helper
+gdown>=4.6.3                # Google Drive direct-download helper
+
+# --- Streamlit dashboard ---
+streamlit>=1.35.0           # Main dashboard framework
+
+# --- API ---
+fastapi>=0.111.0            # REST API framework
+uvicorn[standard]>=0.29.0   # ASGI server for FastAPI
+pydantic>=2.7.0             # Input validation for FastAPI
+
+# --- Monitoring ---
+scipy>=1.10.0               # KS drift detection test
 
 # --- Testing ---
 pytest>=7.2.0               # Unit test runner  →  run with: pytest tests/ -v
 
 # --- Development / notebook environment ---
-# These are not required for the pipeline to run as a script (main.py),
+# These are not required for the pipeline to run as a script,
 # but are needed for the VS Code + Colab notebook workflow.
 jupyter>=1.0.0
 ipykernel>=6.19.0
