@@ -99,12 +99,13 @@ st.markdown(
 
     html, body, [class*="css"] {
         font-family: 'DM Sans', sans-serif;
+        color: #1a2744 !important;
     }
 
     /* ── Page background: soft blue-gray ── */
     .stApp {
-        background: #f0f4f9;
-        color: #1a2744;
+        background: #f0f4f9 !important;
+        color: #1a2744 !important;
     }
 
     /* ── Main header card ── */
